@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Room Chat</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      #chat {
+        border: 1px solid #ccc;
+        padding: 10px;
+        height: 300px;
+        overflow-y: scroll;
+        margin-bottom: 10px;
+      }
+      #messageInput {
+        width: 70%;
+        padding: 5px;
+      }
+      #sendButton,
+      #joinButton {
+        padding: 5px 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Socket.IO Room Chat</h1>
+    <input type="text" id="roomInput" placeholder="Enter room name" />
+    <input type="text" id="userName" placeholder="Enter user name" />
+    <button id="joinButton">Join Room</button>
+    <div id="chat"></div>
+    <input type="text" id="messageInput" placeholder="Type a message" />
+    <button id="sendButton">Send</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io("http://localhost:5000");
+
+      const roomInput = document.getElementById("roomInput");
+      const userNameInput = document.getElementById("userName");
+      const joinButton = document.getElementById("joinButton");
+      const messageInput = document.getElementById("messageInput");
+      const sendButton = document.getElementById("sendButton");
+      const chat = document.getElementById("chat");
+
+      // Join room
+      joinButton.addEventListener("click", () => {
+        const roomName = roomInput.value.trim();
+        const userName = userNameInput.value.trim();
+
+        if (roomName && userName) {
+          socket.emit("joinRoom", roomName, userName);
+          roomInput.dataset.currentRoom = roomName;
+          userNameInput.dataset.currentUser = userName;
+
+          roomInput.value = "";
+          userNameInput.value = "";
+        }
+      });
+
+      // Send message
+      sendButton.addEventListener("click", () => {
+        const message = messageInput.value.trim();
+        const roomName = roomInput.dataset.currentRoom;
+        const userName = userNameInput.dataset.currentUser;
+
+        if (message && roomName && userName) {
+          socket.emit("sendMessage", {
+            roomName,
+            userName,
+            message,
+          });
+
+          // Display your own message
+          const messageDiv = document.createElement("div");
+          messageDiv.textContent = `${userName}: ${message} @ (${new Date().toLocaleTimeString()})`;
+          chat.appendChild(messageDiv);
+          chat.scrollTop = chat.scrollHeight;
+
+          messageInput.value = "";
+        }
+      });
+
+      // // Display user joined
+      socket.on("userJoined", (data) => {
+        const message = document.createElement("div");
+        message.textContent = data.message;
+        chat.appendChild(message);
+        chat.scrollTop = chat.scrollHeight;
+      });
+
+      // // Display messages
+      socket.on("recievedMessage", (data) => {
+        const message = document.createElement("div");
+        message.textContent = `${data.userName}: ${data.message} @ (${new Date(
+          data.timestamp
+        ).toLocaleTimeString()})`;
+
+        chat.appendChild(message);
+        chat.scrollTop = chat.scrollHeight;
+      });
+    </script>
+  </body>
+</html>
