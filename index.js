@@ -5,6 +5,8 @@ import { dirname, join } from "path";
 import path from "path";
 import { Server } from "socket.io";
 import { fileURLToPath } from "url";
+import { dbConnection } from "./db/db-config.js";
+import chatModel from "./model/chat-model.js";
 
 // Fix __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -34,8 +36,14 @@ io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
 
   // Handle joining a room. Server listens for joinRoom event and creates the room
-  socket.on("joinRoom", (roomName, userName) => {
+  socket.on("joinRoom", async (roomName, userName) => {
     console.log(`User: ${userName} joined room: ${roomName}`);
+    await chatModel.create({
+      userName: userName,
+      roomName: roomName,
+      state: `User ${userName} has joined the room`,
+      message: [],
+    });
     socket.join(roomName);
 
     // Notify room members. Tells other connected users to another user has joined on the event of userJoined
@@ -47,7 +55,20 @@ io.on("connection", (socket) => {
   });
 
   // // Handle messages in room. listens for sendMessage event, then emit to every tser in that room on the revievedMessage event
-  socket.on("sendMessage", ({ roomName, userName, message }) => {
+  socket.on("sendMessage", async ({ roomName, userName, message }) => {
+    const updatedDoc = await chatModel.findOneAndUpdate(
+      { userName, roomName },
+      {
+        $set: {
+          messages: { content: message, timeStamp: new Date().toISOString() },
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedDoc) {
+      throw new Error("User not found in room");
+    }
     socket.to(roomName).emit("recievedMessage", {
       userName,
       message,
@@ -64,3 +85,5 @@ io.on("connection", (socket) => {
 httpServer.listen(PORT, () => {
   console.log(`Server listening at http://localhost:${PORT}`);
 });
+
+dbConnection();
