@@ -5,8 +5,9 @@ import { dirname, join } from "path";
 import path from "path";
 import { Server } from "socket.io";
 import { fileURLToPath } from "url";
-import { dbConnection } from "./db/db-config.js";
+import { dbConnection } from "./db/db-config-mongo.js";
 import chatModel from "./model/chat-model.js";
+import { createTable, insertChatWithMessages } from "./db/db-config-postgres.js";
 
 // Fix __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +25,9 @@ app.use(express.static(__dirname));
 app.get("/", (req, res) => {
   res.sendFile(join(__dirname, "index.html"));
 });
+
+dbConnection();
+createTable()
 
 const io = new Server(httpServer, {
   cors: {
@@ -86,4 +90,3 @@ httpServer.listen(PORT, () => {
   console.log(`Server listening at http://localhost:${PORT}`);
 });
 
-dbConnection();
