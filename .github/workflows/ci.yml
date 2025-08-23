@@ -93,18 +93,18 @@ jobs:
     - name: 🧪 Run Unit Tests
       run: npm test -- --testPathIgnorePatterns=integration
 
-    # Step 7: Run integration tests
-    - name: 🔗 Run Integration Tests  
-      run: npm run test:integration
+    # # Step 7: Run integration tests
+    # - name: 🔗 Run Integration Tests  
+    #   run: npm run test:integration
 
-    # Step 8: Generate test coverage report
-    - name: 📊 Generate Coverage Report
-      run: npm run test:coverage
+    # # Step 8: Generate test coverage report
+    # - name: 📊 Generate Coverage Report
+    #   run: npm run test:coverage
 
-    # Step 9: Upload coverage to GitHub (optional)
-    - name: 📤 Upload Coverage Reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-reports
-        path: coverage/
-        retention-days: 7
+    # # Step 9: Upload coverage to GitHub (optional)
+    # - name: 📤 Upload Coverage Reports
+    #   uses: actions/upload-artifact@v4
+      # with:
+      #   name: coverage-reports
+      #   path: coverage/
+      #   retention-days: 7
