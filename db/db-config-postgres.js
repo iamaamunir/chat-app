@@ -33,7 +33,7 @@ export const insertChatWithMessages = async ({
 
     // Insert the chat (like the "orders" table)
     const chatResult = await client.query(
-      `INSERT INTO chats (room_name, user_name, state)
+      `INSERT INTO chats (roomname, username, state)
        VALUES ($1, $2, $3)
        RETURNING id`,
       [roomName, userName, state]

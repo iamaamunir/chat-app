@@ -10,7 +10,7 @@ import chatModel from "./model/chat-model.js";
 import {
   createTable,
   insertChatWithMessages,
-} from "./db/db-config-postgres.js";
+} from "./db/db-config-postgres-test.js";
 import { mongo } from "mongoose";
 
 // Fix __dirname for ES modules
