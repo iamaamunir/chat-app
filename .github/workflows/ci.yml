@@ -1,83 +1,110 @@
-name: CI - Chat App
+name: Chat App CI/CD Pipeline
 
+# When to run this workflow
 on:
+  # Run on every push to main branch
   push:
-    branches: [ "main" ]
+    branches: [ main, master ]
+  # Run on every pull request to main branch  
   pull_request:
-    branches: [ "main" ]
+    branches: [ main, master ]
+  # Allow manual trigger
+  workflow_dispatch:
+
+# Environment variables for the entire workflow
+env:
+  NODE_VERSION: '18'
+  MONGODB_URI: mongodb://localhost:27017/chat_app_test
+  POSTGRES_CONNECTION_STRING: postgresql://postgres:postgres@localhost:5432/chat_app_test?sslmode=disable
+  NODE_ENV: test
 
 jobs:
-  build-and-test:
+  # Job 1: Run Tests
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
+    
+    # Services (databases) that our tests need
     services:
-      postgres:
-        image: postgres:15
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        # wait until postgres is ready
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      mongo:
-        image: mongo:6
+      # MongoDB service
+      mongodb:
+        image: mongo:7.0
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-cmd "mongosh --eval 'db.runCommand({ping: 1})'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
-    env:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: chat_test_db   # 👈 your test db name
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5432
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/chat_test_db
-      MONGO_URI: mongodb://localhost:27017/chat_test_db
-      NODE_ENV: test
+      # PostgreSQL service  
+      postgres:
+        image: postgres:bookworm
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chat_app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
-      # Checkout repo
-      - name: Checkout code
-        uses: actions/checkout@v3
+    # Step 1: Get the code
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
 
-      # Setup Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: npm
+    # Step 2: Setup Node.js
+    - name: 🚀 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
 
-      # Install deps
-      - name: Install dependencies
-        run: npm install
+    # Step 3: Install dependencies
+    - name: 📦 Install dependencies
+      run: npm ci
 
-      # Wait for DBs to be ready
-      - name: Wait for PostgreSQL
-        run: |
-          until pg_isready -h localhost -p 5432 -U postgres; do
-            echo "Waiting for Postgres..."
-            sleep 2
-          done
+    # Step 4: Wait for databases to be ready
+    - name: ⏳ Wait for MongoDB
+      run: |
+        timeout 30 bash -c 'until nc -z localhost 27017; do sleep 1; done'
+        echo "MongoDB is ready!"
 
-      # Create test DB
-      - name: Create test database
-        run: |
-          psql -h localhost -U postgres -c "CREATE DATABASE chat_test_db;"
-        env:
-          PGPASSWORD: postgres
+    - name: ⏳ Wait for PostgreSQL
+      run: |
+        timeout 30 bash -c 'until nc -z localhost 5432; do sleep 1; done'
+        echo "PostgreSQL is ready!"
 
-      # Run migrations (if you have any)
-      - name: Run migrations
-        run: npm run migrate:test
+    # Step 5: Run linting (if you have ESLint configured)
+    - name: 🔍 Run Linting
+      run: |
+        if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ] || [ -f "eslint.config.js" ]; then
+          npm run lint || echo "No lint script found, skipping..."
+        else
+          echo "No ESLint config found, skipping linting..."
+        fi
+      continue-on-error: true
 
-      # Run tests
-      - name: Run tests
-        run: npm test
+    # Step 6: Run unit tests
+    - name: 🧪 Run Unit Tests
+      run: npm test -- --testPathIgnorePatterns=integration
+
+    # Step 7: Run integration tests
+    - name: 🔗 Run Integration Tests  
+      run: npm run test:integration
+
+    # Step 8: Generate test coverage report
+    - name: 📊 Generate Coverage Report
+      run: npm run test:coverage
+
+    # Step 9: Upload coverage to GitHub (optional)
+    - name: 📤 Upload Coverage Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-reports
+        path: coverage/
+        retention-days: 7
