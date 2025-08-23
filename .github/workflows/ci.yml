@@ -34,8 +34,8 @@ jobs:
 
     env:
       NODE_ENV: test
-      MONGODB_URI: mongodb://localhost:27017/testdb
-      POSTGRES_CONNECTION_STRING: postgres://test:test@localhost:5432/testdb
+      MONGODB_URI: mongodb://localhost:27017/chat_test_db
+      POSTGRES_CONNECTION_STRING: postgres://test:test@localhost:5432/chat_test_db
 
     steps:
       - name: Checkout Code
