@@ -41,8 +41,8 @@ app.get("/api/chat/:roomName", async (req, res) => {
   }
 });
 
-dbConnection();
-createTable();
+// dbConnection();
+// createTable();
 
 async function saveToBothDatabases(roomName, userName, state, messages = []) {
   const errors = [];
@@ -148,10 +148,11 @@ io.on("connection", (socket) => {
 });
 
 if (process.env.NODE_ENV !== "test") {
+  dbConnection(); // connect mongo
+  createTable(); // setup postgres
   httpServer.listen(PORT, () => {
     console.log(`Server listening at http://localhost:${PORT}`);
   });
 }
-
 
 export { app, httpServer, io, saveToBothDatabases };
