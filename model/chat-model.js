@@ -1,16 +1,16 @@
 import mongoose from "mongoose";
 
 const chatSchema = new mongoose.Schema({
-  roomName: { type: String },
-  userName: { type: String },
-  state: { type: String },
+  userName: String,
+  roomName: String,
+  state: String,
   messages: [
     {
       content: String,
-      timeStamp: Date,
+      timeStamp: String,
     },
-  ],
-});
+  ]
+}, { timestamps: true }); // <-- This auto-adds createdAt and updatedAt!
 
 const chatModel = mongoose.model("Chat", chatSchema);
 

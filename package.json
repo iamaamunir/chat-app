@@ -4,7 +4,15 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --forceExit",
+    "test:watch": "NODE_ENV=test jest --watch",
+    "test:coverage": "NODE_ENV=test jest --coverage",
+    "test:integration": "NODE_ENV=test jest --testPathPattern=integration"
+  },
+  "jest": {
+    "testEnvironment": "node"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +26,10 @@
     "pg": "^8.16.3",
     "redis": "^5.7.0",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "jest": "^30.0.5",
+    "socket.io-client": "^4.8.1",
+    "supertest": "^7.1.4"
   }
 }

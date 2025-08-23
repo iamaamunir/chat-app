@@ -3,7 +3,7 @@ import { Pool } from "pg";
 
 dotenv.config();
 const connectionString =
-  "postgresql://postgres:postgres@postgres:5432/chat_app?sslmode=disable";
+  "postgresql://postgres:postgres@localhost:5432/chat_app?sslmode=disable";
 
 const pool = new Pool({
   connectionString,
