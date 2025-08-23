@@ -2,52 +2,82 @@ name: CI - Chat App
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
-
     services:
-      mongo:
-        image: mongo:6.0
-        ports: [27017:27017]
-        options: >-
-          --health-cmd="mongosh --eval 'db.adminCommand({ping:1})'"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
       postgres:
         image: postgres:15
+        ports:
+          - 5432:5432
         env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: testdb
-        ports: [5432:5432]
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        # wait until postgres is ready
         options: >-
-          --health-cmd="pg_isready -U test"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chat_test_db   # 👈 your test db name
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/chat_test_db
+      MONGO_URI: mongodb://localhost:27017/chat_test_db
       NODE_ENV: test
-      MONGODB_URI: mongodb://localhost:27017/chat_test_db
-      POSTGRES_CONNECTION_STRING: postgres://test:test@localhost:5432/chat_test_db
 
     steps:
-      - name: Checkout Code
+      # Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Node
+      # Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
+          cache: npm
 
+      # Install deps
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Run Tests
+      # Wait for DBs to be ready
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
+
+      # Create test DB
+      - name: Create test database
+        run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE chat_test_db;"
+        env:
+          PGPASSWORD: postgres
+
+      # Run migrations (if you have any)
+      - name: Run migrations
+        run: npm run migrate:test
+
+      # Run tests
+      - name: Run tests
         run: npm test
