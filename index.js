@@ -4,6 +4,7 @@ import { createServer } from "http";
 import { dirname, join } from "path";
 import path from "path";
 import { Server } from "socket.io";
+import client from "prom-client";
 import { fileURLToPath } from "url";
 import { dbConnection } from "./db/db-config-mongo.js";
 import chatModel from "./model/chat-model.js";
@@ -11,7 +12,9 @@ import {
   createTable,
   insertChatWithMessages,
 } from "./db/db-config-postgres.js";
-import { mongo } from "mongoose";
+import logger from './utils/logger.js'
+import { httpRequestDurationMicroseconds } from "./utils/metrics.js";
+
 
 // Fix __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -25,15 +28,45 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(__dirname));
 
+const httpRequestCounter = new client.Counter({
+  name: "http_requests_total",
+  help: "Total HTTP requests",
+});
+
+app.use((req, res, next) => {
+  httpRequestCounter.inc();
+  next();
+});
+
+app.use((req, res, next) => {
+  logger.info(`Incoming request: ${req.method} ${req.url}`);
+  next();
+});
+
+app.use((req, res, next) => {
+  const end = httpRequestDurationMicroseconds.startTimer();
+  res.on("finish", () => {
+    end({ method: req.method, route: req.url, code: res.statusCode });
+  });
+  next();
+});
+
+
 // Serve the HTML file
 app.get("/", (req, res) => {
   res.sendFile(join(__dirname, "index.html"));
+});
+
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", client.register.contentType);
+  res.end(await client.register.metrics());
 });
 
 app.get("/api/chat/:roomName", async (req, res) => {
   try {
     const { roomName } = req.params;
     const chats = await chatModel.find({ roomName }).sort({ createdAt: 1 });
+    console.log(chats)
     res.json(chats);
   } catch (error) {
     console.error("Error fetching chat history:", error);
@@ -57,6 +90,7 @@ async function saveToBothDatabases(roomName, userName, state, messages = []) {
       messages: messages,
     });
     console.log("saved to mongo", mongoResult._id);
+    logger.info(`saved to mongo: ${mongoResult._id}`)
   } catch (error) {
     console.error("error saving to mongodb", error);
     errors.push({ database: "MongoDB", error: error.message });
@@ -69,7 +103,8 @@ async function saveToBothDatabases(roomName, userName, state, messages = []) {
       state,
       messages,
     });
-    console.log("saved to postgresql");
+    // console.log("saved to postgresql");
+    logger.info("saved to postgresql");
   } catch (error) {
     console.error("postgresql save failed", error);
     errors.push({ database: "PostgreSQL", error: error.message });
@@ -93,11 +128,11 @@ const io = new Server(httpServer, {
 });
 
 io.on("connection", (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  logger.info(`User connected: ${socket.id}`)
 
   // Handle joining a room. Server listens for joinRoom event and creates the room
   socket.on("joinRoom", async (roomName, userName) => {
-    console.log(`User: ${userName} joined room: ${roomName}`);
+    logger.info(`User: ${userName} joined room: ${roomName}`);
     const saveResult = await saveToBothDatabases(
       roomName,
       userName,
@@ -106,7 +141,8 @@ io.on("connection", (socket) => {
     );
 
     if (!saveResult.success) {
-      console.error("Database save errors:", saveResult.errors);
+      // console.error("Database save errors:", saveResult.errors);
+      logger.warn("Database save errors:", saveResult.errors);
       // Still allow the user to join even if database save fails
     }
     socket.join(roomName);
@@ -143,7 +179,8 @@ io.on("connection", (socket) => {
 
   // Handle disconnection
   socket.on("disconnect", () => {
-    console.log(`User disconnected: ${socket.id}`);
+    // console.log(`User disconnected: ${socket.id}`);
+     logger.warn(`User disconnected: ${socket.id}`);
   });
 });
 

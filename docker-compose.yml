@@ -1,31 +1,246 @@
+# services:
+#   mongodb:
+#      image: mongo:7.0
+#      container_name: chat_mongodb
+#      ports:
+#       - "27017:27017"
+#      restart: unless-stopped
+#      environment:
+#       - MONGODB_URI=${MONGODB_URI}
+#      volumes:
+#        - mongodb_data:/data/db
+#      networks:
+#        - chat_network 
+  
+#   postgres:
+#       image: postgres:bookworm
+#       container_name: postgres-chat-db
+#       environment:
+#         - POSTGRES_USER=postgres
+#         - POSTGRES_PASSWORD=postgres
+#         - POSTGRES_DB=chat_app
+#       networks:
+#         - chat_network
+#       volumes:
+#         - postgres_data:/var/lib/postgresql/data
+#       ports:
+#         - "5433:5432"
+  
+#   prometheus:
+#     image: prom/prometheus
+#     volumes:
+#       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+#     ports:
+#       - "9090:9090"
+#     networks:
+#       - chat_network
+
+#   grafana:
+#     image: grafana/grafana
+#     ports:
+#       - "3005:3000"
+#     networks:
+#       - chat_network
+  
+#   cadvisor:
+#     image: gcr.io/cadvisor/cadvisor:latest
+#     ports:
+#       - "8080:8080"
+#     volumes:
+#       - /:/rootfs:ro
+#       - /var/run:/var/run:rw
+#       - /sys:/sys:ro
+#       - /var/lib/docker/:/var/lib/docker:ro
+#     networks:
+#       - chat_network
+
+#   loki:
+#     image: grafana/loki:2.8.2
+#     ports:
+#       - "3100:3100"
+#     networks:
+#       - chat_network
+
+#   promtail:
+#     image: grafana/promtail:2.8.2
+#     volumes:
+#       - ./logs:/var/log
+#     command: -config.file=/etc/promtail/config.yml
+#     networks:
+#       - chat_network
+
+#   chat-app-1:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: chat_app_1
+#     restart: unless-stopped
+#     environment:
+#       - PORT=3000
+#       - MONGODB_URI=${MONGODB_URI}
+#       # - REDIS_URI=${REDIS_URI}
+#     networks:
+#       - chat_network
+#     ports:
+#       - "3001:3000"
+#     expose:
+#       - "3001:3000"
+#     depends_on:
+#       - mongodb
+#       # - redis
+
+#   chat-app-2:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: chat_app_2
+#     restart: unless-stopped
+#     environment:
+#       - PORT=3000
+#       - MONGODB_URI=${MONGODB_URI}
+#       # - REDIS_URI=${REDIS_URI}
+#     networks:
+#       - chat_network
+#     ports:
+#       - "3002:3000"
+#     expose:
+#       - "3000"
+#     depends_on:
+#       - mongodb
+#       # - redis
+
+#   chat-app-3:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: chat_app_3
+#     restart: unless-stopped
+#     environment:
+#       - PORT=3000
+#       - MONGODB_URI=${MONGODB_URI}
+#       # - REDIS_URI=${REDIS_URI}
+#     networks:
+#       - chat_network
+#     ports:
+#       - "3003:3000"
+#     expose:
+#       - "3000"
+#     depends_on:
+#       - mongodb
+#       # - redis
+      
+#   # redis:
+#   #   container-name: redis:8.2-rc1
+#   #   restart: unless-stopped
+#   #   ports:
+#   #     - "6379:6379"
+#   #   networks:
+#   #     - chat_network
+
+#   nginx:
+#     image: nginx:alpine
+#     container_name: chat_nginx
+#     restart: unless-stopped
+#     ports:
+#       - "8000:80"
+#     volumes:
+#       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+#     depends_on:
+#       - chat-app-1
+#       - chat-app-2
+#       - chat-app-3
+#     networks:
+#       - chat_network
+# volumes:
+#   mongodb_data:
+#   postgres_data:
+
+# networks:
+#   chat_network:
+#     driver: bridge
+
 services:
   mongodb:
-     image: mongo:7.0
-     container_name: chat_mongodb
-     ports:
+    image: mongo:7.0
+    container_name: chat_mongodb
+    ports:
       - "27017:27017"
-     restart: unless-stopped
-     environment:
+    restart: unless-stopped
+    environment:
       - MONGODB_URI=${MONGODB_URI}
-     volumes:
-       - mongodb_data:/data/db
-     networks:
-       - chat_network 
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - chat_network 
   
   postgres:
-      image: postgres:bookworm
-      container_name: postgres-chat-db
-      environment:
-        - POSTGRES_USER=postgres
-        - POSTGRES_PASSWORD=postgres
-        - POSTGRES_DB=chat_app
-      networks:
-        - chat_network
-      volumes:
-        - postgres_data:/var/lib/postgresql/data
-      ports:
-        - "5433:5432"
-    
+    image: postgres:bookworm
+    container_name: postgres-chat-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=chat_app
+    networks:
+      - chat_network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+  
+  prometheus:
+    image: prom/prometheus
+    container_name: chat_prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - chat_network
+    depends_on:
+      - chat-app-1
+      - chat-app-2
+      - chat-app-3
+      - cadvisor
+
+  grafana:
+    image: grafana/grafana
+    container_name: chat_grafana
+    ports:
+      - "3005:3000"
+    networks:
+      - chat_network
+    depends_on:
+      - prometheus
+  
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: chat_cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - chat_network
+
+  loki:
+    image: grafana/loki:2.8.2
+    container_name: chat_loki
+    ports:
+      - "3100:3100"
+    networks:
+      - chat_network
+
+  promtail:
+    image: grafana/promtail:2.8.2
+    container_name: chat_promtail
+    volumes:
+      - ./logs:/var/log
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - chat_network
 
   chat-app-1:
     build:
@@ -36,16 +251,12 @@ services:
     environment:
       - PORT=3000
       - MONGODB_URI=${MONGODB_URI}
-      # - REDIS_URI=${REDIS_URI}
     networks:
       - chat_network
     ports:
       - "3001:3000"
-    expose:
-      - "3001:3000"
     depends_on:
       - mongodb
-      # - redis
 
   chat-app-2:
     build:
@@ -56,16 +267,12 @@ services:
     environment:
       - PORT=3000
       - MONGODB_URI=${MONGODB_URI}
-      # - REDIS_URI=${REDIS_URI}
     networks:
       - chat_network
     ports:
       - "3002:3000"
-    expose:
-      - "3000"
     depends_on:
       - mongodb
-      # - redis
 
   chat-app-3:
     build:
@@ -76,31 +283,19 @@ services:
     environment:
       - PORT=3000
       - MONGODB_URI=${MONGODB_URI}
-      # - REDIS_URI=${REDIS_URI}
     networks:
       - chat_network
     ports:
       - "3003:3000"
-    expose:
-      - "3000"
     depends_on:
       - mongodb
-      # - redis
       
-  # redis:
-  #   container-name: redis:8.2-rc1
-  #   restart: unless-stopped
-  #   ports:
-  #     - "6379:6379"
-  #   networks:
-  #     - chat_network
-
   nginx:
     image: nginx:alpine
     container_name: chat_nginx
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8000:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -109,6 +304,7 @@ services:
       - chat-app-3
     networks:
       - chat_network
+
 volumes:
   mongodb_data:
   postgres_data:
@@ -116,3 +312,6 @@ volumes:
 networks:
   chat_network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -3,14 +3,14 @@ import { Pool } from "pg";
 
 dotenv.config();
 const connectionString =
-  "postgresql://postgres:postgres@localhost:5432/chat_app_test?sslmode=disable";
+  "postgresql://postgres:postgres@postgres:5432/chat_app?sslmode=disable";
 
 const pool = new Pool({
   connectionString,
 });
 
 const chats =
-  "CREATE TABLE IF NOT EXISTS chats (ID SERIAL PRIMARY KEY, roomname VARCHAR(255) NOT NULL UNIQUE, username VARCHAR(255) NOT NULL,state VARCHAR(50)NOT NULL,  createdAt TIMESTAMPTZ NOT NULL DEFAULT NOW(), updatedAt TIMESTAMPTZ DEFAULT NOW())";
+  "CREATE TABLE IF NOT EXISTS chats (ID SERIAL PRIMARY KEY, roomname VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL,state VARCHAR(50)NOT NULL,  createdAt TIMESTAMPTZ NOT NULL DEFAULT NOW(), updatedAt TIMESTAMPTZ DEFAULT NOW())";
 
 const messages =
   "CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY,chat_id INT NOT NULL REFERENCES chats(id) ON DELETE CASCADE, content TEXT NOT NULL, createdAt TIMESTAMPTZ DEFAULT NOW())";
@@ -42,9 +42,10 @@ export const insertChatWithMessages = async ({
     const chatId = chatResult.rows[0].id;
 
     // Insert messages (like "order_items")
+    // FIXME: POSTGRES NOT SAVING TO DB
     for (const msg of messages) {
       await client.query(
-        `INSERT INTO messages (chat_id, content, time_stamp)
+        `INSERT INTO messages (chat_id, content, createdAt)
          VALUES ($1, $2, $3)`,
         [chatId, msg.content, msg.timeStamp || new Date()]
       );

@@ -5,7 +5,7 @@ dotenv.config({ path: ".env.test" });
 
 const connectionString =
   process.env.POSTGRES_CONNECTION_STRING ||
-  "postgresql://postgres:postgres@localhost:5432/chat_app_test?sslmode=disable";
+  "postgresql://postgres:postgres@localhost:5432/chat_app?sslmode=disable";
 
 const pool = new Pool({
   connectionString,
