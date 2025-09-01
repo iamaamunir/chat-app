@@ -237,10 +237,12 @@ services:
     image: grafana/promtail:2.8.2
     container_name: chat_promtail
     volumes:
-      - ./logs:/var/log
-    command: -config.file=/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./promtail-config.yml:/etc/promtail/config.yml
     networks:
       - chat_network
+
+
 
   chat-app-1:
     build:
